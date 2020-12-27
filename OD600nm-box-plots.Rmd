@@ -11,21 +11,24 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## How to Make Boxplots with single time-point OD600 values 
 
-```{r}
-#load libraries 
+```{r include=FALSE, echo=FALSE}
+# install packages and load libraries (some of these I'm not using right away)
+# install.packages(c("tidyverse", "ggplot2", "ggpubr", "dplyr", "hrbthemes", "viridis", "broom", "AICcmodavg"))
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
-install.packages("hrbthemes")
 library(hrbrthemes)
 library(viridis)
+library(ggpubr)
+library(broom)
+library(AICcmodavg)
 ```
 
 # Load in Your Data 
 
 ```{r}
 #import data 
-OD <- read.csv("OD-long.csv", header = TRUE)
+OD <- read.csv("data/OD-long.csv", header = TRUE)
 ```
  
 # Make the Boxplots 
@@ -80,17 +83,7 @@ ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
 
 # Perform a One-Way ANOVA 
 
-```{r}
-#install the packages and load the libraries 
-install.packages(c("ggplot2", "ggpubr", "tidyverse", "broom", "AICcmodavg"))
-library(ggplot2)
-library(ggpubr)
-library(tidyverse)
-library(broom)
-library(AICcmodavg)
-```
-
-# In the one-way ANOVA, we test the effects of 5 types of carbohydrates on OD600 values.
+## In the one-way ANOVA, we test the effects of 5 types of carbohydrates on OD600 values.
 
 ```{r}
 #do the ANOVA test
