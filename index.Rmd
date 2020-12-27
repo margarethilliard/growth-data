@@ -1,0 +1,16 @@
+---
+title: "Growth Data"
+author: "Margaret Hilliard"
+date: "2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## projects: 
+
+>- [Box Plots using Pilot Data](OD600nm-box-plots.html)
+
+
