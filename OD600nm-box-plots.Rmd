@@ -1,0 +1,103 @@
+---
+title: "OD600nm-graphs"
+author: "Margaret Hilliard"
+date: "12/26/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## How to Make Boxplots with single time-point OD600 values 
+
+```{r}
+#load libraries 
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+install.packages("hrbthemes")
+library(hrbrthemes)
+library(viridis)
+```
+
+# Load in Your Data 
+
+```{r}
+#import data 
+OD <- read.csv("OD-long.csv", header = TRUE)
+```
+ 
+# Make the Boxplots 
+
+```{r}
+#facet by carbohydrate to show variation in biomass when grown on different sugars/HMO
+ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
+  geom_boxplot() +
+  facet_wrap(facets = "carbohydrate") +
+  scale_fill_manual(values = c("tomato", "sandybrown", "lightgoldenrod1", "seagreen2", "plum", "slategray")) +
+  theme(axis.text = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
+  ylab("OD600") +
+  xlab("Isolate name") +
+  ggtitle("Rochester Isolate OD600 Values by Carbohydrate") 
+```
+
+```{r}
+#facet by isolate to show variation in strain 'preference' for sugars 
+ggplot(data = OD, mapping = aes(x = carbohydrate, y = OD, fill = carbohydrate)) +
+  geom_boxplot() +
+  facet_wrap(facets = "Isolate") +
+  scale_fill_manual(values = c("tomato", "sandybrown", "lightgoldenrod1", "seagreen2", "plum")) +
+  theme(axis.text = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
+  ylab("OD600 at 16 hours") +
+  xlab("Carbohydrate") +
+  ggtitle("Rochester Isolate OD600 Values by Isolate")
+```
+```{r}
+#long panels help compare carbohydrate preferences overall
+ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
+  geom_boxplot() +
+  facet_grid(. ~ carbohydrate) +
+  theme(axis.text = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  scale_fill_manual(values = c("tomato", "sandybrown", "lightgoldenrod1", "seagreen2", "plum", "slategray")) +
+  ylab("OD600 at 16 hours") +
+  ggtitle("Rochester Isolate OD600 Values by Carbohydrate")
+```
+
+
+# Add individual point (bio reps) to the box plots - as per David's request 
+
+```{r}
+ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
+  geom_boxplot() +
+  facet_grid(. ~ carbohydrate) +
+  geom_jitter(color = "black", size=0.4, alpha=0.9) +
+  theme(axis.text = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  scale_fill_manual(values = c("tomato", "sandybrown", "lightgoldenrod1", "seagreen2", "plum", "slategray")) +
+  ylab("OD600 at 16 hours") +
+  ggtitle("Rochester Isolate OD600 Values by Carbohydrate") 
+```
+
+# Perform a One-Way ANOVA 
+
+```{r}
+#install the packages and load the libraries 
+install.packages(c("ggplot2", "ggpubr", "tidyverse", "broom", "AICcmodavg"))
+library(ggplot2)
+library(ggpubr)
+library(tidyverse)
+library(broom)
+library(AICcmodavg)
+```
+
+# In the one-way ANOVA, we test the effects of 5 types of carbohydrates on OD600 values.
+
+```{r}
+#do the ANOVA test
+one.way <- aov(OD ~ carbohydrate, data = OD)
+
+summary(one.way)
+```
+The model summary first lists the independent variables being tested in the model (in this case we have only one, ‘carbohydrate’) and the model residuals (‘Residual’). All of the variation that is not explained by the independent variables is called residual variance.
+
+The p-value of the carbohydrate variable is low (p < 0.001), so it appears that the type of carbohydrate used has a real impact on the final OD600 value. 
