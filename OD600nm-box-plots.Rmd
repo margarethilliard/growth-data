@@ -29,13 +29,21 @@ library(AICcmodavg)
 ```{r}
 #import data 
 OD <- read.csv("data/OD-long.csv", header = TRUE)
+head(OD)
+```
+
+# Subset Data to Exclude MRS 
+
+```{r}
+OD_noMRS <- subset(OD, carbohydrate != "MRS")
+head(OD_noMRS)
 ```
  
 # Make the Boxplots 
 
 ```{r}
 #facet by carbohydrate to show variation in biomass when grown on different sugars/HMO
-ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
+ggplot(data = OD_noMRS, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
   geom_boxplot() +
   facet_wrap(facets = "carbohydrate") +
   scale_fill_manual(values = c("tomato", "sandybrown", "lightgoldenrod1", "seagreen2", "plum", "slategray")) +
@@ -47,7 +55,7 @@ ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
 
 ```{r}
 #facet by isolate to show variation in strain 'preference' for sugars 
-ggplot(data = OD, mapping = aes(x = carbohydrate, y = OD, fill = carbohydrate)) +
+ggplot(data = OD_noMRS, mapping = aes(x = carbohydrate, y = OD, fill = carbohydrate)) +
   geom_boxplot() +
   facet_wrap(facets = "Isolate") +
   scale_fill_manual(values = c("tomato", "sandybrown", "lightgoldenrod1", "seagreen2", "plum")) +
@@ -58,7 +66,7 @@ ggplot(data = OD, mapping = aes(x = carbohydrate, y = OD, fill = carbohydrate)) 
 ```
 ```{r}
 #long panels help compare carbohydrate preferences overall
-ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
+ggplot(data = OD_noMRS, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
   geom_boxplot() +
   facet_grid(. ~ carbohydrate) +
   theme(axis.text = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
@@ -71,7 +79,7 @@ ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
 # Add individual point (bio reps) to the box plots - as per David's request 
 
 ```{r}
-ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
+ggplot(data = OD_noMRS, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
   geom_boxplot() +
   facet_grid(. ~ carbohydrate) +
   geom_jitter(color = "black", size=0.4, alpha=0.9) +
@@ -83,14 +91,102 @@ ggplot(data = OD, mapping = aes(x = Isolate, y = OD, fill = Isolate)) +
 
 # Perform a One-Way ANOVA 
 
-## In the one-way ANOVA, we test the effects of 5 types of carbohydrates on OD600 values.
 
 ```{r}
-#do the ANOVA test
-one.way <- aov(OD ~ carbohydrate, data = OD)
-
+#In the one-way ANOVA, we test the effects of 5 types of carbohydrates (treatments) on OD600 values
+one.way <- aov(OD ~ carbohydrate, data = OD_noMRS)
 summary(one.way)
 ```
 The model summary first lists the independent variables being tested in the model (in this case we have only one, ‘carbohydrate’) and the model residuals (‘Residual’). All of the variation that is not explained by the independent variables is called residual variance.
 
-The p-value of the carbohydrate variable is low (p < 0.001), so it appears that the type of carbohydrate used has a real impact on the final OD600 value. 
+The p-value of the carbohydrate variable is low (p < 0.05), so it appears that the type of carbohydrate used has a real impact on the final OD600 value. However, from this test we don't know which carbs are producing these significant values - so we need to do some pairwise comparisons. 
+
+## Post-hoc Statistical Analysis 
+
+```{r}
+library(agricolae)
+#first fit a linear regression model and perform ANOVA on the data
+
+OD.lm <- lm(OD ~ carbohydrate, data = OD_noMRS)
+OD.av <- aov(OD.lm)
+summary(OD.av)
+
+# tukey test 
+tukey.test <- TukeyHSD(OD.av)
+tukey.test
+```
+
+Plot differences in mean values across carbohydrate 
+```{r fig.height = 4}
+plot(tukey.test)
+```
+
+## Preleminary test(s) to check one-sample t-test assumptions
+
+### Check for normality 
+
+```{r}
+shapiro.test(OD_noMRS$OD) # p-value = 0.1907
+```
+
+From the output, the p-value is greater than the significance level 0.05 implying that the distribution of the data are not significantly different from normal distribution. In other words, we can assume the normality.
+
+### Visual inspection of quantile-quantile plots 
+
+```{r}
+library("ggpubr")
+ggqqplot(OD_noMRS$OD, ylab = "OD600nm",
+         ggtheme = theme_minimal())
+```
+
+From the normality plots, we conclude that the data may come from normal distributions.
+
+## Compute one-tailed t-test
+
+```{r}
+summary(OD_noMRS$OD) # mean = 1.033
+ggboxplot(OD_noMRS$OD, 
+          ylab = "OD600nm", xlab = FALSE, 
+          ggtheme = theme_minimal())
+
+#one-sample t-test 
+
+results <- t.test(OD_noMRS$OD, mu = 1.033)
+
+#print results 
+results
+```
+
+# Add significance bars to ggplot 
+
+    Question = Does LNT help UMA isolates obtain higher OD600 values than LNnT?
+    Hypothesis = Strains grow better on LNT.
+    Null = There is no difference in OD values between LNT and LNnT.
+    alpha = p = 0.05
+    T-test = One-tailed since there is direction ("higher" = greater than) stated     in hypothesis 
+```{r}
+# plot 
+p_isolates <- ggplot(data = OD_noMRS, mapping = aes(x = carbohydrate, y = OD, fill = carbohydrate)) +
+  geom_boxplot() +
+  facet_wrap(facets = "Isolate") +
+  scale_fill_manual(values = c("tomato", "sandybrown", "lightgoldenrod1", "seagreen2", "plum")) +
+  theme(axis.text = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
+  ylab("OD600 at 16 hours") +
+  xlab("Carbohydrate") +
+  ggtitle("Rochester Isolate OD600 Values by Isolate")
+
+# dataframe with pairwise comparison test results
+
+isolates_pair <- pairwise.prop.test(x = OD_noMRS$carbohydrate, )
+  
+  
+  pairwise.t.test(x = "OD", g = "Isolate", p.adjust.method = "bonf")
+
+head(isolates_pair)
+?pairwise.prop.test
+```
+
+
+
+
+
